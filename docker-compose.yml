@@ -5,7 +5,7 @@ services:
   nginx-proxy:
     image: jwilder/nginx-proxy
     container_name: nginx-proxy
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
@@ -19,7 +19,7 @@ services:
   letsencrypt:
     image: jrcs/letsencrypt-nginx-proxy-companion
     container_name: nginx-proxy-le
-    restart: always
+    restart: unless-stopped
     environment:
       - NGINX_PROXY_CONTAINER=nginx-proxy
     volumes:
@@ -34,7 +34,7 @@ services:
   postgres:
     image: postgres:14
     container_name: postgres
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -44,23 +44,25 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
 
-  # n8n service
+  # n8n Service
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
-    restart: always
+    restart: unless-stopped
     depends_on:
       - postgres
     environment:
       - VIRTUAL_HOST=${DOMAIN}
       - LETSENCRYPT_HOST=${DOMAIN}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+
+      # n8n Authentication
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
 
-      # Postgres connection
+      # Postgres Connection
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=${POSTGRES_PORT}
