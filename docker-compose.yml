@@ -1,40 +1,39 @@
 version: "3.8"
 
 services:
-  # Reverse Proxy
+  # Reverse Proxy + Docker-gen + Let's Encrypt (all-in-one)
   nginx-proxy:
-    image: jwilder/nginx-proxy
+    image: nginxproxy/nginx-proxy:alpine
     container_name: nginx-proxy
-    restart: unless-stopped
+    restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - /etc/nginx/certs:/etc/nginx/certs:ro
-      - /etc/nginx/vhost.d
-      - /usr/share/nginx/html
+      - /etc/nginx/certs:/etc/nginx/certs:rw
+      - /etc/nginx/vhost.d:/etc/nginx/vhost.d
+      - /usr/share/nginx/html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
-  # Let's Encrypt Auto SSL
   letsencrypt:
-    image: jrcs/letsencrypt-nginx-proxy-companion
+    image: nginxproxy/acme-companion
     container_name: nginx-proxy-le
-    restart: unless-stopped
+    restart: always
     environment:
       - NGINX_PROXY_CONTAINER=nginx-proxy
+      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
     volumes:
-      - /etc/nginx/certs:/etc/nginx/certs
-      - /etc/nginx/vhost.d
-      - /usr/share/nginx/html
+      - /etc/nginx/certs:/etc/nginx/certs:rw
+      - /etc/nginx/vhost.d:/etc/nginx/vhost.d
+      - /usr/share/nginx/html:/usr/share/nginx/html
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - nginx-proxy
 
-  # PostgreSQL Database
   postgres:
     image: postgres:14
     container_name: postgres
-    restart: unless-stopped
+    restart: always
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -44,25 +43,22 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
 
-  # n8n Service
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
-    restart: unless-stopped
+    restart: always
     depends_on:
       - postgres
     environment:
       - VIRTUAL_HOST=${DOMAIN}
       - LETSENCRYPT_HOST=${DOMAIN}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
-
-      # n8n Authentication
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
 
-      # Postgres Connection
+      # Postgres connection
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=${POSTGRES_PORT}
